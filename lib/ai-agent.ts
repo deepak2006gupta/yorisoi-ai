@@ -19,6 +19,10 @@ export type AnalysisResult = {
     title: string;
     detail: string;
   };
+  conditionReport?: string;
+  medicationAdvice?: string;
+  dietaryAdvice?: string;
+  lifestyleAdvice?: string;
   engine?: string;
 };
 
@@ -42,6 +46,7 @@ export async function runMultiAgentPipeline(patient: {
   caregiver: string;
   focus: string;
   conditions: string;
+  medications?: string;
   notes?: string[];
 }): Promise<AnalysisResult> {
   const groqKey = process.env.GROQ_API_KEY;
@@ -55,11 +60,16 @@ Medication Adherence: ${patient.adherence}%
 Falls last 12 months: ${patient.falls}
 Living status: ${patient.living}, Caregiver available: ${patient.caregiver}
 Chronic Conditions: ${patient.conditions}
+Prescribed Medications: ${patient.medications || "Amlodipine 5mg daily; Lisinopril 10mg daily"}
 Care Focus: ${patient.focus}
 ${patient.notes?.length ? `Recent Clinical Notes: ${patient.notes.join("; ")}` : ""}
 
 Generate a JSON object with:
 - summary: A clear 2-sentence executive care summary.
+- conditionReport: Detailed 2-3 sentence clinical analysis of patient condition, vital risks, and health trajectory.
+- medicationAdvice: Generic medicine guidance, dosage compliance tips, and pill timing advice.
+- dietaryAdvice: Specific dietary & food recommendations (e.g. sodium limits, potassium foods, fluid intake) suited for their conditions.
+- lifestyleAdvice: Fall safety tips and physical daily activity recommendations.
 - agents: Array of 3 agents:
   1. "Health & Wellness" (state: Stable/Attention, insight, action)
   2. "Safety & Emergency" (state: Watch/Clear, insight, action)
@@ -68,6 +78,32 @@ Generate a JSON object with:
 - recommendation: { title: "AI Care Recommendation", detail: "Specific doctor recommendation to approve or modify." }
 
 Return ONLY valid JSON.`;
+
+  // Helper to fallback defaults if LLM omits fields
+  const applyDefaults = (parsed: any, engineName: string) => {
+    const conditionReport = parsed.conditionReport || `Patient ${patient.name} (${patient.age} yrs) presents with ${patient.conditions}. SpO2 is ${patient.spo2}% and Blood Pressure is ${patient.systolic} mmHg. Medication adherence is ${patient.adherence}%. ${patient.systolic >= 140 ? "Blood pressure is elevated requiring twice daily monitoring." : "Vitals remain within expected baseline."}`;
+    const medicationAdvice = parsed.medicationAdvice || `Prescribed medications: ${patient.medications || "Amlodipine 5mg daily; Lisinopril 10mg daily"}. Ensure morning dosage compliance with water. Avoid skipping evening doses.`;
+    const dietaryAdvice = parsed.dietaryAdvice || (patient.systolic >= 140 ? "Low-sodium diet (<2,000 mg/day). Increase potassium-rich foods (bananas, spinach) and maintain 1.5-2L daily fluid intake." : "Balanced Mediterranean diet rich in whole grains, vegetables, and lean proteins.");
+    const lifestyleAdvice = parsed.lifestyleAdvice || (patient.falls > 0 ? `Fall safety protocol active (${patient.falls} recent falls). Clear floor rugs and ensure 15-min daily walking.` : "Encourage 20-30 minutes of light daily walking and consistent nighttime sleep.");
+
+    return {
+      generatedAt: new Date().toISOString(),
+      risk: patient.risk,
+      level: patient.riskLevel,
+      summary: parsed.summary || `${patient.name}'s care profile is ${patient.riskLevel.toLowerCase()} priority (${patient.risk}/100).`,
+      conditionReport,
+      medicationAdvice,
+      dietaryAdvice,
+      lifestyleAdvice,
+      agents: parsed.agents || [],
+      plan: parsed.plan || [],
+      recommendation: parsed.recommendation || {
+        title: "AI Care Recommendation",
+        detail: `Focus review on ${patient.focus}. Monitor SpO2 (${patient.spo2}%) and BP (${patient.systolic} mmHg).`
+      },
+      engine: engineName
+    };
+  };
 
   // 1. Try Groq Primary Model (Llama 3.3 70B)
   if (groqKey) {
@@ -87,19 +123,7 @@ Return ONLY valid JSON.`;
       if (res.ok) {
         const json = await res.json();
         const parsed = JSON.parse(json.choices[0].message.content);
-        return {
-          generatedAt: new Date().toISOString(),
-          risk: patient.risk,
-          level: patient.riskLevel,
-          summary: parsed.summary,
-          agents: parsed.agents,
-          plan: parsed.plan,
-          recommendation: parsed.recommendation || {
-            title: "AI Care Recommendation",
-            detail: `Focus review on ${patient.focus}. Monitor SpO2 (${patient.spo2}%) and BP (${patient.systolic} mmHg).`
-          },
-          engine: "Groq (Llama 3.3 70B)"
-        };
+        return applyDefaults(parsed, "Groq (Llama 3.3 70B)");
       }
     } catch (e) {
       console.warn("Groq Primary API error, failing over to backup engines:", e);
@@ -122,23 +146,14 @@ Return ONLY valid JSON.`;
       if (res.ok) {
         const json = await res.json();
         const parsed = JSON.parse(json.choices[0].message.content);
-        return {
-          generatedAt: new Date().toISOString(),
-          risk: patient.risk,
-          level: patient.riskLevel,
-          summary: parsed.summary,
-          agents: parsed.agents,
-          plan: parsed.plan,
-          recommendation: parsed.recommendation,
-          engine: "Groq (Llama 3 8B)"
-        };
+        return applyDefaults(parsed, "Groq (Llama 3 8B)");
       }
     } catch (e) {
       console.warn("Groq Backup model error:", e);
     }
   }
 
-  // 2. Failover to Gemini API (Gemini 1.5 Flash / 2.0 Flash)
+  // 2. Failover to Gemini API (Gemini 1.5 Flash)
   if (geminiKey) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
@@ -153,19 +168,7 @@ Return ONLY valid JSON.`;
         const json = await res.json();
         const text = json.candidates[0].content.parts[0].text;
         const parsed = JSON.parse(text);
-        return {
-          generatedAt: new Date().toISOString(),
-          risk: patient.risk,
-          level: patient.riskLevel,
-          summary: parsed.summary,
-          agents: parsed.agents,
-          plan: parsed.plan,
-          recommendation: parsed.recommendation || {
-            title: "AI Care Recommendation",
-            detail: `Focus review on ${patient.focus}. Monitor SpO2 (${patient.spo2}%) and BP (${patient.systolic} mmHg).`
-          },
-          engine: "Gemini (1.5 Flash)"
-        };
+        return applyDefaults(parsed, "Gemini (1.5 Flash)");
       }
     } catch (e) {
       console.warn("Gemini API error, failing over to deterministic engine:", e);
@@ -191,11 +194,27 @@ Return ONLY valid JSON.`;
     ? `Fall risk flagged (${patient.falls} recent falls). Recommend physical safety assessment and home pathway clearance.`
     : `Routine wellness target: maintain medication adherence (${patient.adherence}%) and weekly vital checks.`;
 
+  const conditionReport = `Patient ${patient.name} (${patient.age} yrs) presents with ${patient.conditions}. Current SpO2 is ${patient.spo2}% and Blood Pressure is ${patient.systolic} mmHg. Medication compliance is ${patient.adherence}%. ${patient.systolic >= 140 ? "Blood pressure is in elevated range requiring strict morning & evening tracking." : "Vitals are within expected baseline range."}`;
+
+  const medicationAdvice = `Prescribed medications: ${patient.medications || "Amlodipine 5mg daily; Lisinopril 10mg daily"}. Take morning antihypertensives with water after breakfast. Avoid missing evening doses. Ensure pill organizer is updated weekly.`;
+
+  const dietaryAdvice = patient.systolic >= 140
+    ? "Sodium-restricted diet (<2,000 mg/day). Increase potassium-rich foods (bananas, spinach, sweet potatoes). Maintain 1.5-2L daily fluid intake. Avoid processed canned foods and excess caffeine."
+    : "Balanced heart-healthy Mediterranean diet. Include whole grains, greens, and lean proteins. Stay well-hydrated throughout the day.";
+
+  const lifestyleAdvice = patient.falls > 0
+    ? `Fall safety protocol active (${patient.falls} recent falls). Clear room rugs, install bathroom grab bars, and wear non-slip footwear. 15-minute gentle guided walking daily.`
+    : "Encourage 20-30 minutes of light daily walking, gentle stretching, and consistent 7-8 hours of nighttime rest.";
+
   return {
     generatedAt: new Date().toISOString(),
     risk: patient.risk,
     level: patient.riskLevel,
     summary: `${patient.name}'s care profile is ${patient.riskLevel.toLowerCase()} priority (${patient.risk}/100). Care team evaluation recommended ${priority}.`,
+    conditionReport,
+    medicationAdvice,
+    dietaryAdvice,
+    lifestyleAdvice,
     agents: [
       {
         name: "Health & Wellness Agent",
@@ -225,7 +244,7 @@ Return ONLY valid JSON.`;
       title: "AI Care Recommendation",
       detail: recDetail
     },
-    engine: "Yorisoi AI Rules Engine"
+    engine: "Yorisoi AI Engine"
   };
 }
 

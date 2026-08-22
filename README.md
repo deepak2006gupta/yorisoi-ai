@@ -1,4 +1,4 @@
-# Yorisoi AI (寄り添いAI) — Eldercare Command Platform
+ # Yorisoi AI (寄り添いAI) — Eldercare Command Platform
 
 > **Tagline**: Connecting care, AI that stays by your side.
 
