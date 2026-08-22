@@ -1,0 +1,37 @@
+column_name,description,type,notes
+patient_id,Unique synthetic patient identifier,string,YOR-0001 etc.
+demo_patient_name,Fictional display name for demo UI only,string,Synthetic; not a real person
+age_years,Age of synthetic patient,integer,60–95
+sex,Synthetic patient sex category,categorical,Female/Male
+country,Demo geography,categorical,India/Japan
+preferred_language,UI language preference,categorical,English/Japanese
+living_arrangement,Living situation,categorical,Alone/With spouse/With family/Assisted living
+chronic_conditions,Semicolon-separated chronic conditions,string,Synthetic clinical context
+medication_count,Number of medications represented,integer,0–10
+medication_adherence_pct,Estimated adherence for demo,float,65–100%
+heart_rate_bpm,Heart rate,integer,bpm
+systolic_bp_mmhg,Systolic blood pressure,integer,mmHg
+diastolic_bp_mmhg,Diastolic blood pressure,integer,mmHg
+spo2_pct,Peripheral oxygen saturation,integer,%
+sleep_hours,Average sleep duration,float,hours/night
+sleep_quality,Demo sleep quality category,categorical,Poor/Fair/Good/Excellent
+daily_steps,Estimated daily steps,integer,steps/day
+mobility_status,Mobility category,categorical,Independent/Independent with cane/Walker dependent/Wheelchair dependent
+falls_last_12m,Falls in previous 12 months,integer,0–3
+fall_safety_factors,Evidence-informed flagged factors,string,Semicolon-separated
+caregiver_available,Whether caregiver support is available in demo,categorical,Yes/No
+caregiver_visits_per_week,Demo caregiver visits,integer,0–7
+days_since_last_checkup,Days since most recent check-up in demo,integer,2–180
+pain_score_0_10,Demo pain score,integer,0–10
+mood_score_1_10,Demo mood/wellbeing score,integer,1–10
+cognitive_concern,Demo cognitive concern category,categorical,No concern/Mild concern/Needs assessment
+hydration_status,Demo hydration status,categorical,Adequate/Borderline/Needs attention
+activity_level,Derived activity category,categorical,Low/Moderate/High
+demo_risk_score_0_100,Synthetic rule-based demo risk score,integer,0–100; NOT a clinical score
+demo_risk_level,Synthetic risk band,categorical,Low/Moderate/High/Critical
+recommended_focus,Demo care focus areas derived from synthetic signals,string,Semicolon-separated
+next_followup_days,Suggested demo follow-up interval,integer,7/14/30
+family_notification_needed,Demo care-coordination flag,categorical,Yes/No
+clinical_note_category,Demo note category,categorical,Routine review/Medication review/Mobility review/Wellness check/Safety review
+data_status,Provenance label,constant,SYNTHETIC_DEMO
+source_basis,High-level source basis,constant,WHO/CDC aggregate guidance + synthetic generation
