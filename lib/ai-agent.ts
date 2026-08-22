@@ -19,6 +19,12 @@ export type AnalysisResult = {
     title: string;
     detail: string;
   };
+  engine?: string;
+};
+
+export type ChatResult = {
+  reply: string;
+  engine: string;
 };
 
 export async function runMultiAgentPipeline(patient: {
@@ -63,6 +69,7 @@ Generate a JSON object with:
 
 Return ONLY valid JSON.`;
 
+  // 1. Try Groq Primary Model (Llama 3.3 70B)
   if (groqKey) {
     try {
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -90,14 +97,48 @@ Return ONLY valid JSON.`;
           recommendation: parsed.recommendation || {
             title: "AI Care Recommendation",
             detail: `Focus review on ${patient.focus}. Monitor SpO2 (${patient.spo2}%) and BP (${patient.systolic} mmHg).`
-          }
+          },
+          engine: "Groq (Llama 3.3 70B)"
         };
       }
     } catch (e) {
-      console.warn("Groq API call error, using hybrid agent engine:", e);
+      console.warn("Groq Primary API error, failing over to backup engines:", e);
+    }
+
+    // Failover 1b: Try Groq Secondary Model (Llama 3 8B)
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${groqKey}`
+        },
+        body: JSON.stringify({
+          model: "llama3-8b-8192",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" }
+        })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const parsed = JSON.parse(json.choices[0].message.content);
+        return {
+          generatedAt: new Date().toISOString(),
+          risk: patient.risk,
+          level: patient.riskLevel,
+          summary: parsed.summary,
+          agents: parsed.agents,
+          plan: parsed.plan,
+          recommendation: parsed.recommendation,
+          engine: "Groq (Llama 3 8B)"
+        };
+      }
+    } catch (e) {
+      console.warn("Groq Backup model error:", e);
     }
   }
 
+  // 2. Failover to Gemini API (Gemini 1.5 Flash / 2.0 Flash)
   if (geminiKey) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
@@ -122,15 +163,16 @@ Return ONLY valid JSON.`;
           recommendation: parsed.recommendation || {
             title: "AI Care Recommendation",
             detail: `Focus review on ${patient.focus}. Monitor SpO2 (${patient.spo2}%) and BP (${patient.systolic} mmHg).`
-          }
+          },
+          engine: "Gemini (1.5 Flash)"
         };
       }
     } catch (e) {
-      console.warn("Gemini API call error, using hybrid agent engine:", e);
+      console.warn("Gemini API error, failing over to deterministic engine:", e);
     }
   }
 
-  // Fallback Multi-Agent Eldercare Engine
+  // 3. Fallback Multi-Agent Eldercare Engine
   const healthFlags: string[] = [];
   if (patient.adherence < 90) healthFlags.push(`Medication adherence is low at ${patient.adherence}%`);
   if (patient.systolic >= 140) healthFlags.push(`Blood pressure is elevated at ${patient.systolic} mmHg`);
@@ -182,16 +224,17 @@ Return ONLY valid JSON.`;
     recommendation: {
       title: "AI Care Recommendation",
       detail: recDetail
-    }
+    },
+    engine: "Yorisoi AI Rules Engine"
   };
 }
 
 export async function processAiChat(
   patient: any,
-  role: "doctor" | "family" | "patient",
+  role: "doctor" | "family" | "patient" | "assistant",
   userMessage: string,
   chatHistory: { role: string; content: string }[] = []
-): Promise<string> {
+): Promise<ChatResult> {
   const groqKey = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
@@ -199,6 +242,8 @@ export async function processAiChat(
     ? "You are talking directly to an elderly patient. Speak warmly, clearly, reassuringly, avoiding overly complex medical jargon unless asked."
     : role === "family"
     ? "You are talking to a family member/caregiver. Provide empathetic, clear, actionable updates on their loved one's wellness and safety."
+    : role === "assistant"
+    ? "You are talking to a Compounder/Assistant. Provide clear administrative & clinical assistance for scheduling appointments and managing patient records."
     : "You are an AI assistant for clinicians and care coordinators. Provide precise clinical summaries, vital trend analysis, and actionable care plan insights.";
 
   const prompt = `${roleInstruction}
@@ -207,6 +252,7 @@ Patient context: Name ${patient?.name || "Patient"}, Age ${patient?.age || "75"}
 User Question (${role.toUpperCase()}): "${userMessage}"
 Provide a helpful, direct, English response.`;
 
+  // 1. Try Groq Primary API (Llama 3.3 70B)
   if (groqKey) {
     try {
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -225,13 +271,38 @@ Provide a helpful, direct, English response.`;
       });
       if (res.ok) {
         const json = await res.json();
-        return json.choices[0].message.content;
+        return { reply: json.choices[0].message.content, engine: "Groq (Llama 3.3 70B)" };
       }
     } catch (e) {
-      console.warn("Groq chat error:", e);
+      console.warn("Groq Primary API error, failing over to backup engines:", e);
+    }
+
+    // Failover 1b: Try Groq Secondary API (Llama 3 8B)
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${groqKey}`
+        },
+        body: JSON.stringify({
+          model: "llama3-8b-8192",
+          messages: [
+            ...chatHistory.map(h => ({ role: h.role === "user" ? "user" : "assistant", content: h.content })),
+            { role: "user", content: prompt }
+          ]
+        })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return { reply: json.choices[0].message.content, engine: "Groq (Llama 3 8B)" };
+      }
+    } catch (e) {
+      console.warn("Groq Backup model error:", e);
     }
   }
 
+  // 2. Failover to Gemini API (Gemini 1.5 Flash)
   if (geminiKey) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
@@ -243,29 +314,29 @@ Provide a helpful, direct, English response.`;
       });
       if (res.ok) {
         const json = await res.json();
-        return json.candidates[0].content.parts[0].text;
+        return { reply: json.candidates[0].content.parts[0].text, engine: "Gemini (1.5 Flash)" };
       }
     } catch (e) {
-      console.warn("Gemini chat error:", e);
+      console.warn("Gemini API error, failing over to deterministic engine:", e);
     }
   }
 
-  // Smart fallback chat responses based on keywords
+  // 3. Fallback Deterministic AI Engine
   const msg = userMessage.toLowerCase();
+  let reply = "";
   if (msg.includes("bp") || msg.includes("blood pressure")) {
-    return `For ${patient?.name || "the patient"}, current blood pressure is ${patient?.systolic || 120} mmHg. ${patient?.systolic >= 140 ? "This is elevated. Please ensure regular BP checks morning and evening." : "This is within normal range."}`;
+    reply = `For ${patient?.name || "the patient"}, current blood pressure is ${patient?.systolic || 120} mmHg. ${patient?.systolic >= 140 ? "This is elevated. Please ensure regular BP checks morning and evening." : "This is within normal range."}`;
+  } else if (msg.includes("med") || msg.includes("pill") || msg.includes("drug")) {
+    reply = `Medication adherence is currently at ${patient?.adherence || 95}%. ${patient?.adherence < 90 ? "Adherence support is recommended to avoid missed doses." : "The patient is taking medications consistently on schedule."}`;
+  } else if (msg.includes("fall") || msg.includes("safety") || msg.includes("emergency")) {
+    reply = `${patient?.falls > 0 ? `Alert: ${patient.falls} fall(s) reported in the last 12 months.` : "No recent fall incidents reported."} Safety sensors and emergency help buttons remain active.`;
+  } else if (role === "patient") {
+    reply = `Hello ${patient?.name?.split(" ")[0] || "there"}! Your health record shows SpO2 is ${patient?.spo2 || 97}% and blood pressure is ${patient?.systolic || 120} mmHg. You are doing well. Remember to take your medications on time and press the Help button if you ever feel unwell!`;
+  } else if (role === "family") {
+    reply = `Here is the current update for ${patient?.name || "your family member"}: Vitals are stable, medication adherence is ${patient?.adherence || 95}%, and the care team has documented all recent updates. Let us know if you need to contact the doctor directly.`;
+  } else {
+    reply = `Yorisoi AI Care Manager summary: ${patient?.name || "Patient"}'s current risk priority is ${patient?.riskLevel || "Low"}. Focus area: ${patient?.focus || "Routine care"}. Vitals: SpO2 ${patient?.spo2 || 97}%, BP ${patient?.systolic || 120} mmHg.`;
   }
-  if (msg.includes("med") || msg.includes("pill") || msg.includes("drug")) {
-    return `Medication adherence is currently at ${patient?.adherence || 95}%. ${patient?.adherence < 90 ? "Adherence support is recommended to avoid missed doses." : "The patient is taking medications consistently on schedule."}`;
-  }
-  if (msg.includes("fall") || msg.includes("safety") || msg.includes("emergency")) {
-    return `${patient?.falls > 0 ? `Alert: ${patient.falls} fall(s) reported in the last 12 months.` : "No recent fall incidents reported."} Safety sensors and emergency help buttons remain active.`;
-  }
-  if (role === "patient") {
-    return `Hello ${patient?.name?.split(" ")[0] || "there"}! Your health record shows SpO2 is ${patient?.spo2 || 97}% and blood pressure is ${patient?.systolic || 120} mmHg. You are doing well. Remember to take your medications on time and press the Help button if you ever feel unwell!`;
-  }
-  if (role === "family") {
-    return `Here is the current update for ${patient?.name || "your family member"}: Vitals are stable, medication adherence is ${patient?.adherence || 95}%, and the care team has documented all recent updates. Let us know if you need to contact the doctor directly.`;
-  }
-  return `Yorisoi AI Care Manager summary: ${patient?.name}'s current risk priority is ${patient?.riskLevel || "Low"}. Focus area: ${patient?.focus || "Routine care"}. Vitals: SpO2 ${patient?.spo2}%, BP ${patient?.systolic} mmHg.`;
+
+  return { reply, engine: "Yorisoi AI Engine" };
 }

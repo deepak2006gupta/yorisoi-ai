@@ -4,27 +4,29 @@ import { processAiChat } from "../../../lib/ai-agent";
 
 export async function POST(request: NextRequest) {
   try {
-    const { patientId, role, message, history } = await request.json() as {
+    const { patientId, role, message, history, patient: inlinePatient } = await request.json() as {
       patientId?: string;
-      role?: "doctor" | "family" | "patient";
+      role?: "doctor" | "family" | "patient" | "assistant";
       message?: string;
       history?: { role: string; content: string }[];
+      patient?: any;
     };
 
     if (!message?.trim()) {
       return NextResponse.json({ error: "Message content is required." }, { status: 400 });
     }
 
-    let patient: any = null;
-    if (patientId) {
+    let patient: any = inlinePatient || null;
+    if (!patient && patientId) {
       const res = await sql("SELECT id, name, age, risk, risk_level AS \"riskLevel\", adherence, spo2, systolic, diastolic, falls, living, caregiver, focus, conditions, medications FROM patients WHERE id=$1", [patientId]);
       patient = res.rows[0] ?? null;
     }
 
-    const aiResponse = await processAiChat(patient, role || "patient", message, history || []);
+    const chatResult = await processAiChat(patient, role || "patient", message, history || []);
 
     return NextResponse.json({
-      response: aiResponse,
+      reply: typeof chatResult === "string" ? chatResult : chatResult.reply,
+      engine: typeof chatResult === "string" ? "Yorisoi AI Engine" : chatResult.engine,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
