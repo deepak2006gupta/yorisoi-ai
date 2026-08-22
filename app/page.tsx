@@ -27,7 +27,9 @@ import {
   Save,
   Check,
   Clock,
-  Briefcase
+  Briefcase,
+  ArrowRight,
+  Apple
 } from "lucide-react";
 import AiChatBot from "./components/AiChatBot";
 
@@ -55,9 +57,14 @@ type Patient = {
 
 type Analysis = {
   summary: string;
+  conditionReport?: string;
+  medicationAdvice?: string;
+  dietaryAdvice?: string;
+  lifestyleAdvice?: string;
   agents: { name: string; state: string; insight: string; action: string }[];
   plan: string[];
   recommendationId?: number;
+  engine?: string;
 };
 
 type RecordData = {
@@ -176,7 +183,7 @@ export default function Home() {
       const data = await r.json();
       setAnalysis(data);
       await loadRecord(activePatient.id, role);
-      setMessage("AI Multi-Agent Care Review complete. New recommendation generated for Doctor review.");
+      setMessage("AI Multi-Agent Care Review complete. Condition report, medicine, and food recommendations generated!");
     } else {
       setMessage("The AI care review could not be completed.");
     }
@@ -345,7 +352,8 @@ export default function Home() {
 
   return (
     <main suppressHydrationWarning>
-      <header className="topbar" suppressHydrationWarning>
+      {/* Floating Glass Navigation Bar */}
+      <header className="topbar topbar-floating" suppressHydrationWarning>
         <a className="brand" href="#">
           <span className="brand-mark"><HeartPulse size={19} /></span>
           <span>yorisoi<span>AI</span></span>
@@ -353,7 +361,8 @@ export default function Home() {
 
         {/* Enforced Dashboard Individuality */}
         <div className="signed-in" style={{ marginLeft: "auto" }} suppressHydrationWarning>
-          <span style={{ textTransform: "capitalize", background: "#e6f1ec", padding: "4px 10px", borderRadius: "12px", color: "#1c4949", fontWeight: 700 }}>
+          <span style={{ textTransform: "capitalize", background: "#e6f1ec", padding: "4px 12px", borderRadius: "14px", color: "#1c4949", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "6px" }}>
+            <span className="telemetry-pulse" />
             {role === "assistant" ? "Compounder / Assistant" : role} Dashboard
           </span>
           <b>{session.name}</b>
@@ -449,7 +458,7 @@ export default function Home() {
           yorisoi<span>AI</span>
         </a>
         <p>Connecting care, AI that stays by your side.</p>
-        <span>Active DB Persistence · Enforced Dashboard Individuality</span>
+        <span>Active DB Persistence · International Eldercare Portal</span>
       </footer>
     </main>
   );
@@ -490,7 +499,7 @@ function LoginScreen({ login, mounted }: { login: (identifier: string, password:
           <span>yorisoi<span>AI</span></span>
         </a>
         <div>
-          <p className="eyebrow"><Sparkles size={14} /> CONNECTING CARE</p>
+          <p className="eyebrow"><Sparkles size={14} /> MULTI-AGENT CARE ORCHESTRATION</p>
           <h1>Care that stays<br /><em>by your side.</em></h1>
           <p>Multi-agent eldercare platform with active DB persistence, role-secured dashboard individuality, and User ID authentication.</p>
         </div>
@@ -501,86 +510,89 @@ function LoginScreen({ login, mounted }: { login: (identifier: string, password:
         </div>
       </section>
 
+      {/* Containerized Glassmorphism Sign-In Panel */}
       <section className="login-panel" suppressHydrationWarning>
-        <form onSubmit={submit} suppressHydrationWarning>
-          <p className="eyebrow">SIGN IN TO YOUR PORTAL</p>
-          <h2>Choose your portal</h2>
+        <div className="glass-container" suppressHydrationWarning>
+          <form onSubmit={submit} suppressHydrationWarning>
+            <p className="eyebrow" style={{ margin: "0 0 10px" }}><Sparkles size={14} /> SECURED CARE PORTAL</p>
+            <h2>Choose portal</h2>
 
-          {/* Role Portal Selection Tabs on Login */}
-          <div className="role-switch" style={{ margin: "14px 0 22px 0", width: "100%", justifyContent: "space-around" }} suppressHydrationWarning>
-            <button type="button" className={selectedRole === "patient" ? "active" : ""} onClick={() => setSelectedRole("patient")} suppressHydrationWarning>
-              <HeartPulse size={14} /> Patient
+            {/* Role Portal Selection Tabs on Login */}
+            <div className="role-switch" style={{ margin: "14px 0 22px 0", width: "100%", justifyContent: "space-around" }} suppressHydrationWarning>
+              <button type="button" className={selectedRole === "patient" ? "active" : ""} onClick={() => setSelectedRole("patient")} suppressHydrationWarning>
+                <HeartPulse size={14} /> Patient
+              </button>
+              <button type="button" className={selectedRole === "family" ? "active" : ""} onClick={() => setSelectedRole("family")} suppressHydrationWarning>
+                <Users size={14} /> Family
+              </button>
+              <button type="button" className={selectedRole === "doctor" ? "active" : ""} onClick={() => setSelectedRole("doctor")} suppressHydrationWarning>
+                <Stethoscope size={14} /> Doctor
+              </button>
+              <button type="button" className={selectedRole === "assistant" ? "active" : ""} onClick={() => setSelectedRole("assistant")} suppressHydrationWarning>
+                <Briefcase size={14} /> Assistant
+              </button>
+            </div>
+
+            <label suppressHydrationWarning>
+              {selectedRole === "doctor" ? "Doctor Email" : selectedRole === "assistant" ? "Assistant Email" : selectedRole === "patient" ? "Patient User ID (e.g. 101, 102)" : "Patient User ID or Email"}
+              <input
+                type="text"
+                value={identifier}
+                onChange={e => setIdentifier(e.target.value)}
+                placeholder={selectedRole === "doctor" ? "doctor@yorisoi.ai" : selectedRole === "assistant" ? "assistant@yorisoi.ai" : "e.g. 101"}
+                required
+                suppressHydrationWarning
+              />
+            </label>
+            <label suppressHydrationWarning>
+              Password
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required suppressHydrationWarning />
+            </label>
+
+            {error && <p className="login-error">{error}</p>}
+            <button className="primary login-submit" disabled={busy} type="submit" suppressHydrationWarning>
+              {busy ? "Authenticating…" : `Sign in to ${selectedRole.toUpperCase()} Portal`}
             </button>
-            <button type="button" className={selectedRole === "family" ? "active" : ""} onClick={() => setSelectedRole("family")} suppressHydrationWarning>
-              <Users size={14} /> Family
+          </form>
+
+          <div className="demo-accounts" suppressHydrationWarning>
+            <p>DEMO ACCOUNTS · password: <b>care2026</b></p>
+            <button type="button" onClick={() => { setSelectedRole("patient"); setIdentifier("101"); setPassword("care2026"); setError(""); }} suppressHydrationWarning>
+              <span><HeartPulse size={16} /></span>
+              <div>
+                <b>Patient Sign-In (User ID: 101)</b>
+                <small>Ravi Sharma · Reads personal record ONLY</small>
+              </div>
+              <span>Use →</span>
             </button>
-            <button type="button" className={selectedRole === "doctor" ? "active" : ""} onClick={() => setSelectedRole("doctor")} suppressHydrationWarning>
-              <Stethoscope size={14} /> Doctor
+
+            <button type="button" onClick={() => { setSelectedRole("family"); setIdentifier("101"); setPassword("care2026"); setError(""); }} suppressHydrationWarning>
+              <span><Users size={16} /></span>
+              <div>
+                <b>Family Sign-In (User ID: 101)</b>
+                <small>Ravi's Family · Monitoring View ONLY</small>
+              </div>
+              <span>Use →</span>
             </button>
-            <button type="button" className={selectedRole === "assistant" ? "active" : ""} onClick={() => setSelectedRole("assistant")} suppressHydrationWarning>
-              <Briefcase size={14} /> Assistant
+
+            <button type="button" onClick={() => { setSelectedRole("doctor"); setIdentifier("doctor@yorisoi.ai"); setPassword("care2026"); setError(""); }} suppressHydrationWarning>
+              <span><Stethoscope size={16} /></span>
+              <div>
+                <b>Doctor Sign-In</b>
+                <small>doctor@yorisoi.ai · Full Clinical Control</small>
+              </div>
+              <span>Use →</span>
+            </button>
+
+            <button type="button" onClick={() => { setSelectedRole("assistant"); setIdentifier("assistant@yorisoi.ai"); setPassword("care2026"); setError(""); }} suppressHydrationWarning>
+              <span><Briefcase size={16} /></span>
+              <div>
+                <b>Compounder / Assistant Sign-In</b>
+                <small>assistant@yorisoi.ai · Manages Appointment Statuses</small>
+              </div>
+              <span>Use →</span>
             </button>
           </div>
-
-          <label suppressHydrationWarning>
-            {selectedRole === "doctor" ? "Doctor Email" : selectedRole === "assistant" ? "Assistant Email" : selectedRole === "patient" ? "Patient User ID (e.g. 101, 102)" : "Patient User ID or Email"}
-            <input
-              type="text"
-              value={identifier}
-              onChange={e => setIdentifier(e.target.value)}
-              placeholder={selectedRole === "doctor" ? "doctor@yorisoi.ai" : selectedRole === "assistant" ? "assistant@yorisoi.ai" : "e.g. 101"}
-              required
-              suppressHydrationWarning
-            />
-          </label>
-          <label suppressHydrationWarning>
-            Password
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required suppressHydrationWarning />
-          </label>
-
-          {error && <p className="login-error">{error}</p>}
-          <button className="primary login-submit" disabled={busy} type="submit" suppressHydrationWarning>
-            {busy ? "Authenticating…" : `Sign in to ${selectedRole.toUpperCase()} Portal`}
-          </button>
-        </form>
-
-        <div className="demo-accounts" suppressHydrationWarning>
-          <p>DEMO ACCOUNTS · password: <b>care2026</b></p>
-          <button type="button" onClick={() => { setSelectedRole("patient"); setIdentifier("101"); setPassword("care2026"); setError(""); }} suppressHydrationWarning>
-            <span><HeartPulse size={16} /></span>
-            <div>
-              <b>Patient Sign-In (User ID: 101)</b>
-              <small>Ravi Sharma · Reads personal record ONLY</small>
-            </div>
-            <span>Use →</span>
-          </button>
-
-          <button type="button" onClick={() => { setSelectedRole("family"); setIdentifier("101"); setPassword("care2026"); setError(""); }} suppressHydrationWarning>
-            <span><Users size={16} /></span>
-            <div>
-              <b>Family Sign-In (User ID: 101)</b>
-              <small>Ravi's Family · Monitoring View ONLY</small>
-            </div>
-            <span>Use →</span>
-          </button>
-
-          <button type="button" onClick={() => { setSelectedRole("doctor"); setIdentifier("doctor@yorisoi.ai"); setPassword("care2026"); setError(""); }} suppressHydrationWarning>
-            <span><Stethoscope size={16} /></span>
-            <div>
-              <b>Doctor Sign-In</b>
-              <small>doctor@yorisoi.ai · Full Clinical Control</small>
-            </div>
-            <span>Use →</span>
-          </button>
-
-          <button type="button" onClick={() => { setSelectedRole("assistant"); setIdentifier("assistant@yorisoi.ai"); setPassword("care2026"); setError(""); }} suppressHydrationWarning>
-            <span><Briefcase size={16} /></span>
-            <div>
-              <b>Compounder / Assistant Sign-In</b>
-              <small>assistant@yorisoi.ai · Manages Appointment Statuses</small>
-            </div>
-            <span>Use →</span>
-          </button>
         </div>
       </section>
     </main>
@@ -1012,8 +1024,33 @@ function DoctorDashboard({
         </article>
       </section>
 
+      {/* Visual Multi-Agent Pipeline Stepper */}
+      <div style={{ maxWidth: "1184px", margin: "20px auto 0" }} suppressHydrationWarning>
+        <div className="pipeline-stepper" suppressHydrationWarning>
+          <div className="pipeline-step-node">
+            <HeartPulse size={14} style={{ color: "#4f9a7c" }} /> Agent 1: Health Vitals
+          </div>
+          <span className="pipeline-step-arrow"><ArrowRight size={14} /></span>
+          <div className="pipeline-step-node">
+            <ShieldAlert size={14} style={{ color: "#d26c56" }} /> Agent 2: Fall & Safety
+          </div>
+          <span className="pipeline-step-arrow"><ArrowRight size={14} /></span>
+          <div className="pipeline-step-node">
+            <Users size={14} style={{ color: "#617aaa" }} /> Agent 3: Care Network
+          </div>
+          <span className="pipeline-step-arrow"><ArrowRight size={14} /></span>
+          <div className="pipeline-step-node" style={{ background: "#e6f3eb", borderColor: "#285353" }}>
+            <BrainCircuit size={14} style={{ color: "#1c4949" }} /> Agent 4: Care Manager
+          </div>
+          <span className="pipeline-step-arrow"><ArrowRight size={14} /></span>
+          <div className="pipeline-step-node" style={{ background: "#fdf2ee", borderColor: "#e58b76" }}>
+            <Stethoscope size={14} style={{ color: "#d86750" }} /> Doctor Approval
+          </div>
+        </div>
+      </div>
+
       {/* Doctor Dashboard Tab Switcher: Overview vs Dedicated Edit Patient Details Page */}
-      <section className="workspace" style={{ paddingBottom: "30px" }} suppressHydrationWarning>
+      <section className="workspace" style={{ paddingBottom: "30px", paddingTop: "40px" }} suppressHydrationWarning>
         <div style={{ display: "flex", gap: "10px", borderBottom: "2px solid #e2ebe5", paddingBottom: "12px", marginBottom: "24px" }} suppressHydrationWarning>
           <button
             type="button"
@@ -1047,7 +1084,8 @@ function DoctorDashboard({
             </div>
 
             <div className="care-grid">
-              <aside className="patient-list">
+              {/* Left Column: Search & Scrollable Patient Queue */}
+              <aside className="patient-list" style={{ display: "flex", flexDirection: "column" }}>
                 {/* Search Bar Input */}
                 <div style={{ padding: "10px", borderBottom: "1px solid #e6ebe7", background: "#f8faf9" }}>
                   <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
@@ -1076,32 +1114,36 @@ function DoctorDashboard({
                   <span>{filteredPatients.length} / {patients.length}</span>
                 </div>
 
-                {filteredPatients.slice(0, 16).map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setSelected(p)}
-                    className={`patient-row ${selected.id === p.id ? "selected" : ""}`}
-                    suppressHydrationWarning
-                  >
-                    <span className={`avatar ${color(p.riskLevel)}`}>
-                      {p.name.split(" ").map((x) => x[0]).join("")}
-                    </span>
-                    <span>
-                      <b>{p.name}</b>
-                      <small>User ID: <b>{p.id}</b> · {p.age} yrs · {p.riskLevel}</small>
-                    </span>
-                    <i className={`risk-dot ${color(p.riskLevel)}`} />
-                  </button>
-                ))}
+                {/* Scrollable Patient List Box */}
+                <div style={{ flex: 1, maxHeight: "560px", overflowY: "auto", paddingRight: "4px" }}>
+                  {filteredPatients.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSelected(p)}
+                      className={`patient-row ${selected.id === p.id ? "selected" : ""}`}
+                      suppressHydrationWarning
+                    >
+                      <span className={`avatar ${color(p.riskLevel)}`}>
+                        {p.name.split(" ").map((x) => x[0]).join("")}
+                      </span>
+                      <span>
+                        <b>{p.name}</b>
+                        <small>User ID: <b>{p.id}</b> · {p.age} yrs · {p.riskLevel}</small>
+                      </span>
+                      <i className={`risk-dot ${color(p.riskLevel)}`} />
+                    </button>
+                  ))}
 
-                {filteredPatients.length === 0 && (
-                  <p style={{ padding: "16px", fontSize: "12px", color: "#809291", textAlign: "center" }}>
-                    No patient matching "{searchQuery}".
-                  </p>
-                )}
+                  {filteredPatients.length === 0 && (
+                    <p style={{ padding: "16px", fontSize: "12px", color: "#809291", textAlign: "center" }}>
+                      No patient matching "{searchQuery}".
+                    </p>
+                  )}
+                </div>
               </aside>
 
+              {/* Right Column: Active Patient Detailed Control Center */}
               <div className="patient-detail">
                 <div className="detail-head">
                   <div className="person">
@@ -1121,7 +1163,7 @@ function DoctorDashboard({
                   </span>
                 </div>
 
-                {/* Vitals Grid */}
+                {/* Vitals Grid with Telemetry Pulses */}
                 <div className="vitals">
                   <Vital label="OXYGEN SATURATION" value={`${selected.spo2}%`} status={selected.spo2 < 95 ? "Attention" : "Stable"} />
                   <Vital label="BLOOD PRESSURE" value={`${selected.systolic} mmHg`} status={selected.systolic >= 140 ? "Elevated" : "Stable"} />
@@ -1137,6 +1179,108 @@ function DoctorDashboard({
                   <button className="primary compact" type="button" onClick={runAnalysis} disabled={busy} suppressHydrationWarning>
                     <BrainCircuit size={15} /> {busy ? "Analyzing…" : "Run AI Review"}
                   </button>
+                </div>
+
+                {/* AI Clinical & Nutritional Analysis Report Container (2-Column Grid Layout) */}
+                <div style={{ marginTop: "24px", borderTop: "1px solid #e1ebe5", paddingTop: "20px" }} suppressHydrationWarning>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                    <p className="eyebrow" style={{ margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <BrainCircuit size={15} style={{ color: "#1c4949" }} /> AI CLINICAL & NUTRITIONAL ANALYSIS REPORT
+                    </p>
+                    {analysis?.engine && (
+                      <span style={{ fontSize: "10px", background: "#e6f3eb", color: "#1c4949", padding: "3px 8px", borderRadius: "10px", fontWeight: 700 }}>
+                        Generated by {analysis.engine}
+                      </span>
+                    )}
+                  </div>
+
+                  {analysis ? (
+                    <div style={{ background: "#f6faf7", border: "1px solid #d4e5db", borderRadius: "14px", padding: "20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }} suppressHydrationWarning>
+                      {/* Left Column */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                        <div>
+                          <small style={{ font: "9px 'DM Mono'", color: "#d86750", letterSpacing: "0.8px", fontWeight: 600 }}>1. PATIENT CONDITION REPORT</small>
+                          <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "#244445", lineHeight: "1.5" }}>
+                            {analysis.conditionReport || analysis.summary}
+                          </p>
+                        </div>
+
+                        <div style={{ borderTop: "1px solid #e0ece4", paddingTop: "12px" }}>
+                          <small style={{ font: "9px 'DM Mono'", color: "#25484a", letterSpacing: "0.8px", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                            <Pill size={12} style={{ color: "#4c9275" }} /> 2. GENERIC MEDICATION GUIDANCE
+                          </small>
+                          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#436263", lineHeight: "1.5" }}>
+                            {analysis.medicationAdvice}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Right Column */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                        <div>
+                          <small style={{ font: "9px 'DM Mono'", color: "#25484a", letterSpacing: "0.8px", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                            <Apple size={12} style={{ color: "#4c9275" }} /> 3. DIETARY & NUTRITION RECOMMENDATIONS
+                          </small>
+                          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#436263", lineHeight: "1.5" }}>
+                            {analysis.dietaryAdvice}
+                          </p>
+                        </div>
+
+                        <div style={{ borderTop: "1px solid #e0ece4", paddingTop: "12px" }}>
+                          <small style={{ font: "9px 'DM Mono'", color: "#25484a", letterSpacing: "0.8px", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                            <Activity size={12} style={{ color: "#4c9275" }} /> 4. LIFESTYLE & FALL SAFETY PROTOCOL
+                          </small>
+                          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#436263", lineHeight: "1.5" }}>
+                            {analysis.lifestyleAdvice}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ background: "#f9fcfb", border: "1px dashed #cce0d5", borderRadius: "14px", padding: "20px", textAlign: "center" }} suppressHydrationWarning>
+                      <BrainCircuit size={26} style={{ color: "#74a896", marginBottom: "6px" }} />
+                      <h4 style={{ margin: "0 0 4px", fontSize: "13.5px", color: "#224546" }}>AI Clinical & Nutritional Analysis Report</h4>
+                      <p style={{ margin: "0 0 12px", fontSize: "12px", color: "#657d7c", maxWidth: "420px", marginLeft: "auto", marginRight: "auto" }}>
+                        Click <b>'Run AI Review'</b> to generate a full report detailing {selected.name}'s clinical condition, generic medication guidance, and dietary/food recommendations.
+                      </p>
+                      <button className="primary compact" type="button" onClick={runAnalysis} disabled={busy} style={{ margin: "0 auto" }} suppressHydrationWarning>
+                        <BrainCircuit size={14} /> {busy ? "Generating AI Report…" : "Run AI Review"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Integrated Doctor Notes & Care Plan Lower Section */}
+                <div style={{ marginTop: "20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", borderTop: "1px solid #e1ebe5", paddingTop: "18px" }} suppressHydrationWarning>
+                  <div style={{ background: "#f8faf9", border: "1px solid #e1e9e3", borderRadius: "12px", padding: "14px" }}>
+                    <small style={{ font: "9px 'DM Mono'", color: "#617775", letterSpacing: "0.7px" }}>ACTIVE CARE PLAN & NOTES</small>
+                    <h4 style={{ margin: "6px 0", fontSize: "13px", color: "#224546" }}>{record.carePlan?.plan || "No custom care plan authored yet."}</h4>
+                    {record.notes[0] && (
+                      <p style={{ margin: "6px 0 0", fontSize: "11.5px", color: "#546e6d", fontStyle: "italic" }}>
+                        Latest note: "{record.notes[0].note}" ({record.notes[0].author})
+                      </p>
+                    )}
+                  </div>
+
+                  <div style={{ background: "#f8faf9", border: "1px solid #e1e9e3", borderRadius: "12px", padding: "14px" }}>
+                    <small style={{ font: "9px 'DM Mono'", color: "#617775", letterSpacing: "0.7px" }}>DOCTOR RECOMMENDATION APPROVALS</small>
+                    {record.recommendations[0] ? (
+                      <div style={{ marginTop: "4px" }}>
+                        <b style={{ fontSize: "12px", color: "#25484a" }}>{record.recommendations[0].title}</b>
+                        <p style={{ margin: "2px 0 6px", fontSize: "11.5px", color: "#546e6d" }}>{record.recommendations[0].detail}</p>
+                        {record.recommendations[0].status === "Pending" ? (
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <button className="btn-approve" type="button" onClick={() => approve(record.recommendations[0].id)} style={{ padding: "4px 8px", fontSize: "10px", borderRadius: "6px", border: 0, background: "#e3f2ea", color: "#337a5e", fontWeight: 700, cursor: "pointer" }}>Approve</button>
+                            <button className="btn-modify" type="button" onClick={() => openModifyRecModal(record.recommendations[0])} style={{ padding: "4px 8px", fontSize: "10px", borderRadius: "6px", border: 0, background: "#edf2f8", color: "#3a6a96", fontWeight: 700, cursor: "pointer" }}>Edit & Approve</button>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: "10px", color: "#448c70", fontWeight: 700 }}>✓ Published to Patient & Family</span>
+                        )}
+                      </div>
+                    ) : (
+                      <p style={{ margin: "4px 0 0", fontSize: "11.5px", color: "#809291" }}>No pending doctor recommendations.</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1317,7 +1461,7 @@ function DoctorDashboard({
               </div>
             </div>
           ))}
-          {!record.notes.length && <p className="muted">No clinical notes recorded yet.</p>}
+          {!record.notes.length && <p className="muted">No doctor notes recorded yet.</p>}
         </article>
       </section>
     </>
@@ -1461,7 +1605,7 @@ function PatientDashboard({
     : "A few vital numbers need attention today. Please take your prescribed medications and rest well.";
 
   return (
-    <section className="role-page patient-page" suppressHydrationWarning>
+    <section className={`role-page patient-page ${plain ? "" : "high-contrast-mode"}`} suppressHydrationWarning>
       <div className="patient-head">
         <div>
           <p className="eyebrow"><HeartPulse size={14} /> MY PERSONAL HEALTH PORTAL (USER ID: {patient.id})</p>
@@ -1474,7 +1618,7 @@ function PatientDashboard({
           </span>
 
           <button className={`language-toggle ${plain ? "active" : ""}`} type="button" onClick={() => setPlain(!plain)} suppressHydrationWarning>
-            {plain ? "Easy Language ON" : "Medical Terms ON"}
+            {plain ? "Easy Read Mode ON" : "Medical Terms ON"}
           </button>
 
           <button className="emergency-btn" type="button" onClick={openEmergencyModal} suppressHydrationWarning>
@@ -1575,7 +1719,9 @@ function PatientDashboard({
 function Vital({ label, value, status }: { label: string; value: string; status: string }) {
   return (
     <div className="vital">
-      <small>{label}</small>
+      <small style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+        <span className="telemetry-pulse" /> {label}
+      </small>
       <b>{value}</b>
       <span className={status === "Stable" || status === "On track" || status === "Clear" ? "" : "attention"}>
         {status}
